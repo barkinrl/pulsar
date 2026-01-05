@@ -1,0 +1,16 @@
+# Git
+.git
+.gitignore
+
+# Go
+bin/
+tmp/
+
+# Node
+node_modules/
+web/node_modules/
+web/dist/
+
+# Docker
+docker-compose.yml
+Dockerfile

@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package pulsar.v1;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/barkinrl/pulsar/gen/go/proto/pulsar/v1";
+
+service MonitorService {
+  rpc CreateMonitor(CreateMonitorRequest) returns (CreateMonitorResponse);
+  rpc ListMonitors(ListMonitorsRequest) returns (ListMonitorsResponse);
+  rpc DeleteMonitor(DeleteMonitorRequest) returns (DeleteMonitorResponse);
+  
+  // Geçmiş verileri (History) çekmek için
+  rpc GetMonitorStats(GetMonitorStatsRequest) returns (GetMonitorStatsResponse);
+
+  // Sistem istatistikleri (Opsiyonel, genelde WebSocket kullanıyoruz ama burada kalabilir)
+  rpc GetSystemStats(google.protobuf.Empty) returns (stream SystemStatsResponse);
+}
+
+// --- CRUD MESAJLARI ---
+message Monitor {
+  string id = 1;
+  string url = 2;
+  int32 interval_seconds = 3;
+  bool is_active = 4;
+  int64 last_check = 5;
+}
+
+message CreateMonitorRequest {
+  string url = 1;
+  int32 interval_seconds = 2;
+}
+
+message CreateMonitorResponse {
+  Monitor monitor = 1;
+}
+
+message ListMonitorsRequest {}
+
+message ListMonitorsResponse {
+  repeated Monitor monitors = 1;
+}
+
+message DeleteMonitorRequest {
+  string monitor_id = 1;
+}
+
+message DeleteMonitorResponse {
+  bool success = 1;
+}
+
+// --- İSTATİSTİK VE GEÇMİŞ VERİ MESAJLARI (GÜNCELLENDİ) ---
+
+message GetMonitorStatsRequest {
+  string monitor_id = 1;
+}
+
+message GetMonitorStatsResponse {
+  repeated MonitorStat stats = 1;
+}
+
+// Tek bir ping işleminin detaylı sonucu
+message MonitorStat {
+  int32 latency = 1;        // Toplam süre (ms)
+  int32 code = 2;           // HTTP Status Code (200, 404, 500...)
+  string status = 3;        // Status Text (OK, DOWN...)
+  string time = 4;          // Zaman damgası (ISO String)
+  MonitorTiming timing = 5; // Waterfall detayları
+}
+
+// Waterfall grafiği için detaylı süreler
+message MonitorTiming {
+  int32 dns = 1;
+  int32 tcp = 2;
+  int32 tls = 3;
+  int32 ttfb = 4;
+  int32 download = 5;
+}
+
+// --- SİSTEM İSTATİSTİKLERİ ---
+message SystemStatsResponse {
+  ResourceUsage cpu = 1;
+  ResourceUsage memory = 2;
+  ResourceUsage disk = 3;
+  ResourceUsage network = 4;
+  ThreadUsage threads = 5; 
+  SystemInfo info = 6;
+}
+
+message ThreadUsage {
+  int32 total = 1;
+  int32 running = 2;
+  int32 sleeping = 3;
+  int32 zombie = 4;
+  bool is_warning = 5;
+  repeated ThreadHistory history = 6;
+}
+
+message ThreadHistory {
+  int32 running = 1;
+  int32 sleeping = 2;
+  int32 zombie = 3;
+  string time = 4;
+}
+
+message ResourceUsage {
+  double used = 1;
+  double total = 2;
+  double percent = 3;
+  string unit = 4;
+  bool is_warning = 5;
+  repeated double history = 6; 
+}
+
+message SystemInfo {
+  string hostname = 1;
+  string os = 2;
+  uint64 uptime_seconds = 3;
+  string platform = 4;
+  string platform_version = 5;
+}

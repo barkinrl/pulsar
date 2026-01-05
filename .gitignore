@@ -1,0 +1,33 @@
+# --- GO ---
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+vendor/
+go.work
+
+# --- NODE / FRONTEND ---
+node_modules/
+npm-debug.log
+yarn-error.log
+web/node_modules/
+web/dist/
+web/.env
+web/.env.local
+
+# --- MACOS / SYSTEM ---
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# --- IDE / EDITOR ---
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- DOCKER & ENV ---
+.env
+docker-compose.override.yml
+

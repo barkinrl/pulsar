@@ -1,0 +1,130 @@
+version: "3.8"
+
+services:
+  # --- 1. Veritabanı (Postgres) ---
+  postgres:
+    image: postgres:15-alpine
+    container_name: pulsar_db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=pulsar_user
+      - POSTGRES_PASSWORD=pulsar_password
+      - POSTGRES_DB=pulsar_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # init.sql dosyasını container'ın özel klasörüne kopyalıyoruz
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - pulsar_net
+    # --- SAĞLIK KONTROLÜ (HEALTHCHECK) EKLENDİ ---
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pulsar_user -d pulsar_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- 2. Önbellek & Kuyruk (Redis) ---
+  redis:
+    image: redis:7-alpine
+    container_name: pulsar_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - pulsar_net
+    # --- SAĞLIK KONTROLÜ (HEALTHCHECK) EKLENDİ ---
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # --- 3. Backend API ---
+  backend:
+    container_name: pulsar_backend
+    image: golang:1.24-alpine
+    privileged: true
+    pid: "host"
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/hostfs:ro
+    environment:
+      - DATABASE_URL=postgres://pulsar_user:pulsar_password@postgres:5432/pulsar_db?sslmode=disable
+      - REDIS_ADDR=redis:6379 # Burayı Worker ile uyumlu olsun diye ekleyebilirsin veya kodun hardcoded ise gerekmez
+      - HOST_PROC=/host/proc
+      - HOST_SYS=/host/sys
+      - HOST_ETC=/host/etc
+      - ROOT_FS=/hostfs
+    command: sh -c "go mod download && go run cmd/api/main.go"
+    ports:
+      - "8081:8080"
+    networks:
+      - pulsar_net
+    # --- BEKLEME KOŞULLARI GÜNCELLENDİ ---
+    depends_on:
+      postgres:
+        condition: service_healthy # DB tamamen hazır olana kadar başlama
+      redis:
+        condition: service_healthy # Redis tamamen hazır olana kadar başlama
+
+  # --- 4. Worker (Arka Plan İşleri) ---
+  worker:
+    container_name: pulsar_worker
+    image: golang:1.24-alpine
+    working_dir: /app
+    # --- BU SATIRLARI EKLE ---
+    privileged: true
+    pid: "host"
+    volumes:
+      - .:/app
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/hostfs:ro
+    environment:
+      - DATABASE_URL=postgres://pulsar_user:pulsar_password@postgres:5432/pulsar_db?sslmode=disable
+      - REDIS_ADDR=redis:6379
+      # Env değişkenleri de lazım
+      - HOST_PROC=/host/proc
+      - HOST_SYS=/host/sys
+      - HOST_ETC=/host/etc
+      - ROOT_FS=/hostfs
+    # -------------------------
+    command: sh -c "go mod download && go run cmd/worker/main.go"
+    networks:
+      - pulsar_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # --- 5. Frontend (React) ---
+  frontend:
+    container_name: pulsar_frontend
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./web:/app
+    environment:
+      # Backend dışarıya 8081'den veriliyor, frontend isteği buraya atacak
+      - VITE_API_URL=http://localhost:8081
+    command: sh -c "npm install && npm run dev -- --host"
+    ports:
+      - "3001:5173"
+    networks:
+      - pulsar_net
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  pulsar_net:
+    driver: bridge
