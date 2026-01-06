@@ -22,9 +22,9 @@ import {
   CornerDownRight,
   Plus,
 } from "lucide-react";
-import { TimeSlider } from "./TimeSlider"; // YENİ COMPONENT
+import { TimeSlider } from "./TimeSlider";
 
-// --- VERİ TİPLERİ ---
+// --- DATA TYPES ---
 interface MonitorTiming {
   dns: number;
   connect: number;
@@ -34,10 +34,10 @@ interface MonitorTiming {
 }
 
 interface Props {
-  monitor: any; // MonitorWithChildren tipini basitleştirmek için any kullandık
+  monitor: any;
   onDelete: (id: string) => void;
   liveData?: any;
-  allLiveData?: Record<string, any>; // Tüm canlı veriler (çocuklar için)
+  allLiveData?: Record<string, any>;
 }
 
 interface ChartDataPoint {
@@ -50,7 +50,7 @@ interface ChartDataPoint {
   timing?: MonitorTiming;
 }
 
-// --- SABİTLER ---
+// --- SETTINGS ---
 const MAX_HISTORY_SIZE = 1000;
 const WINDOW_SIZE = 40;
 
@@ -83,7 +83,7 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-// Waterfall Bileşeni (Aynı)
+// Waterfall
 const WaterfallBar = ({
   timing,
   total,
@@ -127,7 +127,6 @@ const WaterfallBar = ({
         ></div>
       </div>
       <div className="grid grid-cols-5 gap-2 text-[10px]">
-        {/* ... Detaylar (Aynı) ... */}
         <div className="flex flex-col gap-1">
           <span className="text-gray-400">DNS</span>
           <span className="font-bold text-gray-200">
@@ -177,7 +176,7 @@ export function MonitorWidget({
   const [sliderValue, setSliderValue] = useState(0);
   const [hoveredData, setHoveredData] = useState<ChartDataPoint | null>(null);
 
-  // Alt Sayfa Ekleme State'leri
+  // Add Sub-Page States
   const [showAddSub, setShowAddSub] = useState(false);
   const [subPath, setSubPath] = useState("");
   const [subLoading, setSubLoading] = useState(false);
@@ -191,7 +190,7 @@ export function MonitorWidget({
     setMounted(true);
   }, []);
 
-  // --- 1. GEÇMİŞ VERİLERİ YÜKLE ---
+  // --- 1. LOAD INITIAL HISTORY DATA ---
   useEffect(() => {
     const loadHistory = async () => {
       try {
@@ -224,7 +223,7 @@ export function MonitorWidget({
     if (monitor.id) loadHistory();
   }, [monitor.id]);
 
-  // --- 2. CANLI VERİ ---
+  // --- 2. ADD NEW DATA POINT EVERY INTERVAL ---
   useEffect(() => {
     if (!liveData) return;
     const now = new Date();
@@ -309,7 +308,7 @@ export function MonitorWidget({
       ? "#fbbf24"
       : "#34d399";
 
-  // --- ALT SAYFA EKLEME ---
+  // --- ADD SUB-PAGE ---
   const handleAddSubPage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subPath) return;
@@ -340,7 +339,7 @@ export function MonitorWidget({
         className="bg-[#09090b] border border-gray-800 w-full max-w-5xl h-[800px] rounded-3xl p-8 relative shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* MODAL HEADER (Aynı) */}
+        {/* MODAL HEADER */}
         <div className="flex justify-between items-start mb-6">
           <div className="flex items-center gap-5">
             <div
@@ -384,7 +383,7 @@ export function MonitorWidget({
         </div>
 
         <div className="flex-1 w-full bg-gray-900/20 rounded-2xl border border-gray-800/50 p-6 relative overflow-hidden flex flex-col justify-between">
-          {/* CHART (Aynı) */}
+          {/* CHART */}
           <div className="flex-1 min-h-0 mb-4 relative">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
@@ -480,7 +479,7 @@ export function MonitorWidget({
   return (
     <>
       <div className="group relative bg-[#09090b] border border-gray-800 rounded-2xl p-5 hover:border-gray-700 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/5 flex flex-col h-auto min-h-[250px]">
-        {/* HEADER & SPARKLINE (Aynı) */}
+        {/* HEADER & SPARKLINE */}
         <div className="flex justify-between items-start mb-4 relative z-10">
           <div className="flex items-center gap-3">
             <div

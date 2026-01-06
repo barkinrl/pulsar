@@ -9,7 +9,6 @@ interface Props {
   isLive: boolean;
   currentViewDate: string;
   currentViewTime: string;
-  // Cetveldeki zamanı hesaplamak için dışarıdan fonksiyon alıyoruz
   getTimeAtIndex: (index: number) => string;
 }
 
@@ -36,7 +35,7 @@ export function TimeSlider({
 
   return (
     <div className="mt-2 px-2 select-none pt-8 relative w-full h-12 flex items-center group touch-none z-10">
-      {/* 1. TARİH BALONU (Konumu yukarı alındı) */}
+      {/* 1. History sheet */}
       <div
         className="absolute -top-6 transition-all duration-75 ease-out z-30 flex flex-col items-center pointer-events-none"
         style={{ left: `${percent}%`, transform: "translateX(-50%)" }}
@@ -49,13 +48,13 @@ export function TimeSlider({
           <span className="opacity-50">|</span>
           <span>{currentViewTime}</span>
         </div>
-        {/* Ok İşareti */}
+        {/* Arrow */}
         <div
           className={`w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] ${arrowBorder}`}
         ></div>
       </div>
 
-      {/* 2. ARKA PLAN ÇİZGİSİ (Track) */}
+      {/* 2. Track */}
       <div className="absolute w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
         <div
           className={`h-full transition-all duration-75 ${bgTrack}`}
@@ -63,7 +62,7 @@ export function TimeSlider({
         ></div>
       </div>
 
-      {/* 3. GÖRÜNMEZ INPUT (Etkileşim için) */}
+      {/* 3. INVISIBLE INPUT */}
       <input
         type="range"
         min={0}
@@ -73,7 +72,7 @@ export function TimeSlider({
         className="absolute w-full h-10 opacity-0 cursor-pointer z-40 top-1/2 -translate-y-1/2"
       />
 
-      {/* 4. GÖRÜNÜR TUTAMAÇ (THUMB - Büyük ve Parlak) */}
+      {/* 4. THUMB ) */}
       <div
         className={`absolute top-1/2 h-5 w-5 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)] border-2 pointer-events-none transition-all duration-75 ease-out z-20 flex items-center justify-center ${thumbBorder}`}
         style={{
@@ -84,7 +83,7 @@ export function TimeSlider({
         <div className={`w-1.5 h-1.5 rounded-full ${thumbDot}`}></div>
       </div>
 
-      {/* 5. CETVEL (Ruler) */}
+      {/* 5. Ruler */}
       <div className="absolute -bottom-6 w-full flex justify-between px-0.5 pointer-events-none">
         {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
           const index = Math.floor(maxVal * pct);

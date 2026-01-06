@@ -1,7 +1,7 @@
--- 1. UUID Eklentisini Aç
+-- 1. UUID Extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. Monitors Tablosu (Sitelerin listesi)
+-- 2. Monitors Tables
 CREATE TABLE IF NOT EXISTS monitors (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     url TEXT NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS monitors (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 3. Monitor Results Tablosu (Ping & Waterfall)
+-- 3. Monitor Results (Ping & Waterfall)
 CREATE TABLE IF NOT EXISTS monitor_results (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     monitor_id UUID NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS monitor_results (
     status TEXT NOT NULL,
     latency INTEGER NOT NULL,
     
-    -- Waterfall (Trace) Detayları
+    -- Waterfall (Trace) 
     timing_dns INTEGER NOT NULL DEFAULT 0,
     timing_tcp INTEGER NOT NULL DEFAULT 0,
     timing_tls INTEGER NOT NULL DEFAULT 0,
@@ -30,20 +30,20 @@ CREATE TABLE IF NOT EXISTS monitor_results (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 4. Monitor İndeksleri
+-- 4. Monitor Indexes 
 CREATE INDEX IF NOT EXISTS idx_results_monitor_id_created ON monitor_results(monitor_id, created_at DESC);
 
--- 5. SYSTEM STATS TABLOSU (EKSİK OLAN KISIM EKLENDİ)
+-- 5. SYSTEM STATS 
 CREATE TABLE IF NOT EXISTS system_stats (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
-    -- Kaynak Kullanımları
+    -- Source Usages    
     cpu_percent DOUBLE PRECISION NOT NULL,
     memory_percent DOUBLE PRECISION NOT NULL,
     disk_percent DOUBLE PRECISION NOT NULL,
     net_kb_s DOUBLE PRECISION NOT NULL,
     
-    -- Thread Detayları
+    -- Thread Details
     threads_total INTEGER NOT NULL DEFAULT 0,
     threads_running INTEGER NOT NULL DEFAULT 0,
     threads_sleeping INTEGER NOT NULL DEFAULT 0,
@@ -52,5 +52,5 @@ CREATE TABLE IF NOT EXISTS system_stats (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 6. System Stats İndeksi (Grafikler için hızlı okuma sağlar)
+-- 6. System Stats Indexes
 CREATE INDEX IF NOT EXISTS idx_system_stats_created ON system_stats(created_at DESC);

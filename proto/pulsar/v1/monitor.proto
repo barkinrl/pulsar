@@ -11,14 +11,12 @@ service MonitorService {
   rpc ListMonitors(ListMonitorsRequest) returns (ListMonitorsResponse);
   rpc DeleteMonitor(DeleteMonitorRequest) returns (DeleteMonitorResponse);
   
-  // Geçmiş verileri (History) çekmek için
   rpc GetMonitorStats(GetMonitorStatsRequest) returns (GetMonitorStatsResponse);
 
-  // Sistem istatistikleri (Opsiyonel, genelde WebSocket kullanıyoruz ama burada kalabilir)
   rpc GetSystemStats(google.protobuf.Empty) returns (stream SystemStatsResponse);
 }
 
-// --- CRUD MESAJLARI ---
+
 message Monitor {
   string id = 1;
   string url = 2;
@@ -50,7 +48,7 @@ message DeleteMonitorResponse {
   bool success = 1;
 }
 
-// --- İSTATİSTİK VE GEÇMİŞ VERİ MESAJLARI (GÜNCELLENDİ) ---
+
 
 message GetMonitorStatsRequest {
   string monitor_id = 1;
@@ -60,16 +58,16 @@ message GetMonitorStatsResponse {
   repeated MonitorStat stats = 1;
 }
 
-// Tek bir ping işleminin detaylı sonucu
+
 message MonitorStat {
-  int32 latency = 1;        // Toplam süre (ms)
+  int32 latency = 1;        // ms
   int32 code = 2;           // HTTP Status Code (200, 404, 500...)
-  string status = 3;        // Status Text (OK, DOWN...)
-  string time = 4;          // Zaman damgası (ISO String)
-  MonitorTiming timing = 5; // Waterfall detayları
+  string status = 3;        
+  string time = 4;          
+  MonitorTiming timing = 5; 
 }
 
-// Waterfall grafiği için detaylı süreler
+
 message MonitorTiming {
   int32 dns = 1;
   int32 tcp = 2;
@@ -78,7 +76,7 @@ message MonitorTiming {
   int32 download = 5;
 }
 
-// --- SİSTEM İSTATİSTİKLERİ ---
+
 message SystemStatsResponse {
   ResourceUsage cpu = 1;
   ResourceUsage memory = 2;

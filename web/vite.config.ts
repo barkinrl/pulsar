@@ -8,7 +8,7 @@ export default defineConfig({
     host: true,
     port: 5173,
     watch: {
-      usePolling: true, // Windows/Mac dosya sistemi senkronizasyonu için bazen gerekir
+      usePolling: true,
     },
   },
 });

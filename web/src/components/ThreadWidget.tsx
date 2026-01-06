@@ -45,7 +45,7 @@ const MAX_HISTORY_SIZE = 1000;
 const WINDOW_SIZE = 50;
 const DATA_INTERVAL_MS = 15000;
 
-// Özel Tooltip
+// Special Tooltip
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
@@ -94,7 +94,7 @@ export function ThreadWidget({
     setMounted(true);
   }, []);
 
-  // 1. GEÇMİŞ VERİYİ YÜKLE
+  // 1. LOAD INITIAL HISTORY DATA
   useEffect(() => {
     if (history && history.length > 0) {
       setData((prev) => {
@@ -119,9 +119,8 @@ export function ThreadWidget({
     }
   }, [history]);
 
-  // 2. CANLI VERİ EKLE
+  // 2. ADD NEW DATA POINT EVERY INTERVAL
   useEffect(() => {
-    // Toplam 0 ise (ilk yükleme) ekleme yapma
     if (total === 0 && running === 0) return;
 
     const now = new Date();

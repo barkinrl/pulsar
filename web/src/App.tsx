@@ -46,15 +46,13 @@ function App() {
   const [wsConnected, setWsConnected] = useState(false);
   const ws = useRef<WebSocket | null>(null);
 
-  // --- GRUPLAMA MANTIĞI ---
+  // --- GROUPING LOGIC ---
   const getGroupedMonitors = (flatList: Monitor[]): MonitorWithChildren[] => {
-    // 1. Kısa URL'den uzun URL'ye sırala
     const sorted = [...flatList].sort((a, b) => a.url.length - b.url.length);
 
     const groups: MonitorWithChildren[] = [];
     const processedIds = new Set<string>();
 
-    // 2. Gruplama
     sorted.forEach((parent) => {
       if (processedIds.has(parent.id)) return;
 
@@ -68,10 +66,6 @@ function App() {
       children.forEach((c) => processedIds.add(c.id));
       processedIds.add(parent.id);
 
-      // --- DÜZELTME BURADA ---
-      // Class instance'ını spread edince metodlar kayboluyor.
-      // TypeScript hatasını önlemek için 'as any' veya 'as MonitorWithChildren' kullanıyoruz.
-      // Runtime'da bir sorun çıkarmaz çünkü UI'da sadece verileri kullanıyoruz.
       groups.push({ ...parent, children } as any);
     });
 
@@ -121,15 +115,11 @@ function App() {
     )
       return;
 
-    // --- DİNAMİK URL MANTIĞI BURADA ---
-    // Env variable'dan API URL'ini al (Yoksa localhost varsay)
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8081";
 
-    // "http" -> "ws" veya "https" -> "wss" dönüşümü yap
-    // Örnek: "http://3.121.29.12:8081" -> "ws://3.121.29.12:8081/ws"
     const wsUrl = apiUrl.replace(/^http/, "ws") + "/ws";
 
-    console.log("Connecting to WebSocket:", wsUrl); // Debug için konsolda görebilirsin
+    console.log("Connecting to WebSocket:", wsUrl);
 
     const socket = new WebSocket(wsUrl);
     // ----------------------------------
@@ -190,7 +180,7 @@ function App() {
       await fetchMonitors();
       setUrl("");
     } catch (error) {
-      alert("Hata: " + error);
+      alert("Error: " + error);
     }
     setLoading(false);
   };
@@ -210,7 +200,7 @@ function App() {
 
   return (
     <div className="h-screen w-screen bg-[#050505] text-white flex overflow-hidden font-sans selection:bg-blue-600">
-      {/* SOL PANEL */}
+      {/* LEFT PANEL */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         <header className="px-8 py-6 flex justify-between items-center z-10 border-b border-gray-900/50 bg-[#050505]/80 backdrop-blur-md sticky top-0">
           <div>
@@ -282,7 +272,7 @@ function App() {
         </div>
       </div>
 
-      {/* SAĞ PANEL */}
+      {/* RIGHT PANEL */}
       <div className="w-[340px] border-l border-gray-900 bg-[#080808] p-5 flex flex-col gap-5 h-full overflow-y-auto z-20 shadow-2xl custom-scrollbar">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">

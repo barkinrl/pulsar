@@ -19,7 +19,7 @@ import {
   CartesianGrid,
   ReferenceLine,
 } from "recharts";
-import { TimeSlider } from "./TimeSlider"; // IMPORT THE NEW SLIDER
+import { TimeSlider } from "./TimeSlider";
 
 interface Props {
   label: string;
@@ -332,7 +332,7 @@ export function SystemWidget({
             </ResponsiveContainer>
           </div>
 
-          {/* --- YENİ SLIDER COMPONENT --- */}
+          {/* --- NEW  SLIDER COMPONENT --- */}
           <TimeSlider
             totalItems={data.length}
             windowSize={WINDOW_SIZE}
