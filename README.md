@@ -1,4 +1,5 @@
-# Pulsar
+# Pulsar  
+---> http://3.121.29.12:3001  (ec2 instance on aws)
 
 Pulsar is a comprehensive, real-time monitoring dashboard for web services and system resources. Built with a Go backend and a React frontend, it provides detailed insights into website uptime, latency, and the performance of the host system.
 
