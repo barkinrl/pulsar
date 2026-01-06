@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react"; // useMemo eklendi
 import { client } from "./lib/client";
 import type { Monitor } from "./gen/proto/pulsar/v1/monitor_pb";
 import { MonitorWidget } from "./components/MonitorWidget";
@@ -11,7 +11,6 @@ interface WSMessage {
   data: any;
 }
 
-// Backend'den gelen tarihçe verisi
 interface HistoryData {
   cpu: number[];
   ram: number[];
@@ -25,9 +24,6 @@ interface HistoryData {
   }[];
 }
 
-// --- YENİ TİP ---
-// 'extends Monitor' yerine 'Monitor' tipindeki verileri taşıyan bir yapı kuruyoruz.
-// Class metodlarını (clone, equals vb.) zorunlu tutmamak için bu şekilde tanımladık.
 export type MonitorWithChildren = Monitor & {
   children?: Monitor[];
 };
@@ -74,7 +70,7 @@ function App() {
 
   const groupedMonitors = getGroupedMonitors(monitors);
 
-  // --- 1. GEÇMİŞ SİSTEM VERİLERİ ---
+  // --- 1. HISTORY DATA ---
   useEffect(() => {
     const controller = new AbortController();
     const fetchHistory = async () => {
@@ -106,6 +102,19 @@ function App() {
     return () => controller.abort();
   }, []);
 
+  // --- RENDER TIME ---
+  const ramHistoryInGB = useMemo(() => {
+    const total = systemStats?.memory?.total || 0;
+    if (!historyStats?.ram || total === 0) return [];
+    return historyStats.ram.map((percent) => (percent * total) / 100);
+  }, [historyStats?.ram, systemStats?.memory?.total]);
+
+  const diskHistoryInGB = useMemo(() => {
+    const total = systemStats?.disk?.total || 0;
+    if (!historyStats?.disk || total === 0) return [];
+    return historyStats.disk.map((percent) => (percent * total) / 100);
+  }, [historyStats?.disk, systemStats?.disk?.total]);
+
   // --- 2. WEBSOCKET ---
   useEffect(() => {
     if (
@@ -116,14 +125,11 @@ function App() {
       return;
 
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8081";
-
     const wsUrl = apiUrl.replace(/^http/, "ws") + "/ws";
 
     console.log("Connecting to WebSocket:", wsUrl);
 
     const socket = new WebSocket(wsUrl);
-    // ----------------------------------
-
     ws.current = socket;
 
     socket.onopen = () => setWsConnected(true);
@@ -309,7 +315,8 @@ function App() {
             color="text-purple-400"
             borderColor="border-purple-500/20"
             bg="bg-purple-500"
-            history={historyStats?.ram}
+            // DÜZELTME: Artık hesaplanmış GB verisini veriyoruz
+            history={ramHistoryInGB}
           />
           <SystemWidget
             label="Disk"
@@ -321,7 +328,7 @@ function App() {
             color="text-emerald-400"
             borderColor="border-emerald-500/20"
             bg="bg-emerald-500"
-            history={historyStats?.disk}
+            history={diskHistoryInGB}
           />
           <SystemWidget
             label="Network"

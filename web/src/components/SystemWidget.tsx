@@ -101,22 +101,43 @@ export function SystemWidget({
   }, [label]);
 
   // --- 1. HISTORY LOAD ---
+  // --- 1. HISTORY LOAD ---
   useEffect(() => {
     if (history && history.length > 0 && !historyLoaded.current) {
       const now = new Date();
-      const formattedHistory: ChartDataPoint[] = history.map((val, index) => {
-        const timeOffset = (history.length - 1 - index) * DATA_INTERVAL_MS;
-        const pointDate = new Date(now.getTime() - timeOffset);
 
-        return {
-          value: val,
-          time: pointDate.toLocaleTimeString("tr-TR", { hour12: false }),
-          fullDate: pointDate.toLocaleDateString("tr-TR"),
-        };
-      });
+      // --- DÜZELTME BURADA ---
+      // Backend'den veri [YENİ -> ESKİ] geliyor.
+      // Bizim zaman hesaplamamız ise [ESKİ -> YENİ] mantığına göre.
+      // Bu yüzden diziyi önce ters çeviriyoruz (reverse).
+      // [...history] diyerek kopyasını alıyoruz ki orijinal array bozulmasın.
+      const reversedHistory = [...history].reverse();
+
+      const formattedHistory: ChartDataPoint[] = reversedHistory.map(
+        (val, index) => {
+          // Artık index 0 = En Eski Veri
+          // Index Son = En Yeni Veri
+          // timeOffset mantığımız şimdi doğru çalışacak:
+          // (Length - 1 - index) -> index arttıkça offset azalır (günüme yaklaşır)
+          const timeOffset =
+            (reversedHistory.length - 1 - index) * DATA_INTERVAL_MS;
+          const pointDate = new Date(now.getTime() - timeOffset);
+
+          return {
+            value: val,
+            time: pointDate.toLocaleTimeString("tr-TR", { hour12: false }),
+            fullDate: pointDate.toLocaleDateString("tr-TR"),
+          };
+        }
+      );
 
       setData((prev) => {
+        // Live data gelmiş olabilir, onları koruyarak geçmişi başa ekle
+        // Çakışma olmaması için timestamp kontrolü yapılabilir ama
+        // şimdilik basit merge yeterli.
         const merged = [...formattedHistory, ...prev];
+
+        // Max boyutu aşarsa kırp
         if (merged.length > MAX_HISTORY_SIZE) {
           return merged.slice(merged.length - MAX_HISTORY_SIZE);
         }
