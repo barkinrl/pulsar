@@ -14,7 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
-	// Gopsutil paketleri (Sistem İzleme için)
+	// Gopsutil Packages for System Stats
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/host"
@@ -23,7 +23,7 @@ import (
 	"github.com/shirou/gopsutil/v3/process"
 )
 
-// Network hızı hesaplamak için global değişkenler
+
 var (
 	prevNetTime   time.Time
 	prevBytesRecv uint64
@@ -31,7 +31,7 @@ var (
 )
 
 func main() {
-	// 1. DB Bağlantısı
+	// 1. DB Conn
 	dbUrl := os.Getenv("DATABASE_URL")
 	if dbUrl == "" {
 		dbUrl = "postgres://pulsar_user:pulsar_password@localhost:5432/pulsar_db?sslmode=disable"
@@ -55,16 +55,16 @@ func main() {
 	queries := db.New(pool)
 	log.Println("✅ Worker veritabanı havuzuna (Pool) bağlandı")
 
-	// 2. Redis Bağlantısı
+	// 2. Redis Conn
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
 		redisAddr = "localhost:6379"
 	}
 
-	// Asynq için ayarlar
+	// Asynq Redis Client Opt
 	asynqRedisOpt := asynq.RedisClientOpt{Addr: redisAddr}
 
-	// Pub/Sub ve System Stats için kullanacağımız Redis Client
+	// Pub/Sub and System Stats for Redis Client
 	rdb := redis.NewClient(&redis.Options{
 		Addr: redisAddr,
 	})
@@ -73,8 +73,7 @@ func main() {
 	poller := worker.NewPoller(queries, asynqRedisOpt)
 	go poller.Start(context.Background(), 10*time.Second)
 
-	// --- PART B: SYSTEM MONITOR (YENİ EKLENDİ) ---
-	// Sistem kaynaklarını izleyen döngüyü arka planda başlatıyoruz
+	// --- PART B: SYSTEM MONITOR  ---
 	go startSystemMonitor(queries, rdb)
 
 	// --- PART C: WORKER SERVER ---
@@ -96,23 +95,22 @@ func main() {
 	processor := worker.NewPingProcessor(queries, rdb)
 	mux.HandleFunc(worker.TypePingMonitor, processor.HandlePingTask)
 
-	log.Printf("👷 Worker Server başlatılıyor... (Redis: %s)", redisAddr)
+	log.Printf("👷 Worker Server started... (Redis: %s)", redisAddr)
 	if err := srv.Run(mux); err != nil {
 		log.Fatal(err)
 	}
 }
 
-// --- YARDIMCI: Process Durumlarını Sayar ---
+// --- HELPER: Process States ---
 func getProcessStates() (total, running, sleeping, zombie int32) {
 	procs, err := process.Processes()
 	if err != nil {
-		// Hata durumunda en azından goroutine sayısını dönelim
 		return int32(runtime.NumGoroutine()), int32(runtime.NumGoroutine()), 0, 0
 	}
 
 	total = int32(len(procs))
 	for _, p := range procs {
-		status, err := p.Status() // []string döner
+		status, err := p.Status() // []string 
 		if err != nil || len(status) == 0 {
 			continue
 		}
@@ -132,9 +130,8 @@ func getProcessStates() (total, running, sleeping, zombie int32) {
 	return
 }
 
-// --- ANA FONKSİYON: Sistem İzleme Döngüsü ---
+// --- SYSTEM MONITOR ---
 func startSystemMonitor(queries *db.Queries, rdb *redis.Client) {
-	// Başlangıç Network Değerleri
 	n, _ := net.IOCounters(false)
 	if len(n) > 0 {
 		prevBytesRecv = n[0].BytesRecv
@@ -153,9 +150,9 @@ func startSystemMonitor(queries *db.Queries, rdb *redis.Client) {
 		c, _ := cpu.Percent(0, false)
 		d, _ := disk.Usage("/")
 		n, _ := net.IOCounters(false)
-		h, _ := host.Info() // Uptime ve OS bilgisi
+		h, _ := host.Info() // Uptime and OS 
 
-		// Thread Analizi
+		// Thread Analysis
 		tTotal, tRun, tSleep, tZombie := getProcessStates()
 
 		cpuVal := 0.0
@@ -171,7 +168,7 @@ func startSystemMonitor(queries *db.Queries, rdb *redis.Client) {
 			if duration > 0 {
 				deltaRecv := float64(n[0].BytesRecv - prevBytesRecv)
 				deltaSent := float64(n[0].BytesSent - prevBytesSent)
-				// (Byte / Saniye) / 1024 => KB/s
+				// (Byte / Sec) / 1024 => KB/s
 				networkSpeedKB = ((deltaRecv + deltaSent) / duration) / 1024
 			}
 			prevBytesRecv = n[0].BytesRecv
@@ -179,7 +176,7 @@ func startSystemMonitor(queries *db.Queries, rdb *redis.Client) {
 			prevNetTime = now
 		}
 
-		// 1. DB'ye Kayıt (API kapalı olsa bile çalışır)
+		// 1. DB storage
 		ctx := context.Background()
 		_, err := queries.CreateSystemStat(ctx, db.CreateSystemStatParams{
 			CpuPercent:      cpuVal,
@@ -195,7 +192,7 @@ func startSystemMonitor(queries *db.Queries, rdb *redis.Client) {
 			log.Printf("⚠️ System Stat DB Error: %v", err)
 		}
 
-		// 2. Redis'e Yayınla (API bunu duyup WebSocket'e iletecek)
+		// 2. Redis Pub/Sub 
 		isWarning := tTotal > THREAD_ALARM_THRESHOLD
 
 		payload := map[string]interface{}{
@@ -230,7 +227,6 @@ func startSystemMonitor(queries *db.Queries, rdb *redis.Client) {
 		}
 
 		msgBytes, _ := json.Marshal(payload)
-		// "pulsar:updates" kanalına atıyoruz, API burayı dinliyor
 		rdb.Publish(ctx, "pulsar:updates", msgBytes)
 	}
 }

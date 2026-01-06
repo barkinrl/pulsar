@@ -1,10 +1,10 @@
 -- +goose Up
 -- SQL in section 'Up' is executed when this migration is applied
 
--- UUID üretebilmek için eklentiyi açıyoruz
+-- UUID Extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. Monitörlerin (Sitelerin) listesi
+-- 1. Monitors TABLE
 CREATE TABLE monitors (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     url TEXT NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE monitors (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- 2. Monitör Sonuçları (Waterfall verileri ile)
+-- 2. Monitor Results (Ping & Waterfall)
 CREATE TABLE monitor_results (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     monitor_id UUID NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
@@ -23,7 +23,7 @@ CREATE TABLE monitor_results (
     status TEXT NOT NULL,
     latency INT NOT NULL,
     
-    -- Waterfall Detayları
+    -- Waterfall Details
     timing_dns INT NOT NULL DEFAULT 0,
     timing_tcp INT NOT NULL DEFAULT 0,
     timing_tls INT NOT NULL DEFAULT 0,
@@ -35,17 +35,17 @@ CREATE TABLE monitor_results (
 
 CREATE INDEX idx_results_monitor_id_created ON monitor_results(monitor_id, created_at DESC);
 
--- 3. SYSTEM STATS TABLOSU (BURAYA TAŞINDI - UP KISMINA)
+-- 3. SYSTEM STATS TABLE
 CREATE TABLE IF NOT EXISTS system_stats (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     
-    -- Kaynak Kullanımları
+    -- Source Usage
     cpu_percent DOUBLE PRECISION NOT NULL,
     memory_percent DOUBLE PRECISION NOT NULL,
     disk_percent DOUBLE PRECISION NOT NULL,
     net_kb_s DOUBLE PRECISION NOT NULL,
     
-    -- Thread Detayları
+    -- Thread Details
     threads_total INTEGER NOT NULL DEFAULT 0,
     threads_running INTEGER NOT NULL DEFAULT 0,
     threads_sleeping INTEGER NOT NULL DEFAULT 0,
@@ -60,8 +60,7 @@ CREATE INDEX IF NOT EXISTS idx_system_stats_created ON system_stats(created_at D
 -- +goose Down
 -- SQL in section 'Down' is executed when this migration is rolled back
 
--- Silme işlemleri (Ters sıra ile)
-DROP TABLE IF EXISTS system_stats;    -- <-- EKLENDİ
+DROP TABLE IF EXISTS system_stats;    
 DROP TABLE IF EXISTS monitor_results;
 DROP TABLE IF EXISTS pings;
 DROP TABLE IF EXISTS monitors;

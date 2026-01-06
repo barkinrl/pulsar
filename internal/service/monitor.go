@@ -24,18 +24,18 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-// MonitorServer, Protobuf'ta tanımladığımız sunucu arayüzünü implemente eder.
+// MonitorServer, Protobuf implementation for Monitor Service
 type MonitorServer struct {
 	queries *db.Queries
 	v1connect.UnimplementedMonitorServiceHandler
 }
 
-// NewMonitorServer, yeni bir servis örneği oluşturur.
+// NewMonitorServer...
 func NewMonitorServer(queries *db.Queries) *MonitorServer {
 	return &MonitorServer{queries: queries}
 }
 
-// CreateMonitor... (Aynı)
+// CreateMonitor... 
 func (s *MonitorServer) CreateMonitor(
 	ctx context.Context,
 	req *connect.Request[pulsarv1.CreateMonitorRequest],
@@ -58,7 +58,7 @@ func (s *MonitorServer) CreateMonitor(
 	}), nil
 }
 
-// ListMonitors... (Aynı)
+// ListMonitors... 
 func (s *MonitorServer) ListMonitors(
 	ctx context.Context,
 	req *connect.Request[pulsarv1.ListMonitorsRequest],
@@ -81,7 +81,7 @@ func (s *MonitorServer) ListMonitors(
 	}), nil
 }
 
-// GetMonitorStats... (Aynı)
+// GetMonitorStats... 
 func (s *MonitorServer) GetMonitorStats(
 	ctx context.Context,
 	req *connect.Request[pulsarv1.GetMonitorStatsRequest],
@@ -115,7 +115,7 @@ func (s *MonitorServer) GetMonitorStats(
 	}), nil
 }
 
-// DeleteMonitor... (Aynı)
+// DeleteMonitor... 
 func (s *MonitorServer) DeleteMonitor(
 	ctx context.Context,
 	req *connect.Request[pulsarv1.DeleteMonitorRequest],
@@ -133,7 +133,7 @@ func (s *MonitorServer) DeleteMonitor(
 	}), nil
 }
 
-// GetSystemStats... (Process Analizi Düzeltildi)
+// GetSystemStats... 
 func (s *MonitorServer) GetSystemStats(
 	ctx context.Context,
 	req *connect.Request[emptypb.Empty],
@@ -141,7 +141,7 @@ func (s *MonitorServer) GetSystemStats(
 ) error {
 	hostInfo, _ := host.Info()
 
-	// --- 1. GEÇMİŞ VERİYİ ÇEK VE GÖNDER ---
+	// --- 1. FETCH HISTORY AND SEND ---
 	history, err := s.queries.GetSystemStatHistory(ctx)
 	if err == nil && len(history) > 0 {
 		var cpuHist, memHist, diskHist, netHist []float64
@@ -179,7 +179,7 @@ func (s *MonitorServer) GetSystemStats(
 		stream.Send(initialResp)
 	}
 
-	// --- 2. CANLI AKIŞ ---
+	// --- 2. LIVE STREAM ---
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
@@ -190,7 +190,7 @@ func (s *MonitorServer) GetSystemStats(
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			// --- KAYNAKLAR ---
+			// --- SOURCES ---
 			cpuPercents, err := cpu.Percent(0, false)
 			cpuUsage := 0.0
 			if err == nil && len(cpuPercents) > 0 {
@@ -205,7 +205,7 @@ func (s *MonitorServer) GetSystemStats(
 			}
 			diskStat, _ := disk.Usage(diskPath)
 
-			// --- NETWORK HIZI ---
+			// --- NETWORK ---
 			netStats, _ := net.IOCounters(false)
 			netSpeed := 0.0
 			if len(netStats) > 0 {
@@ -217,7 +217,7 @@ func (s *MonitorServer) GetSystemStats(
 				prevNetStat = &currentNet
 			}
 
-			// --- DETAYLI THREAD ANALİZİ (DÜZELTİLDİ) ---
+			// --- THREAD ANALYZE ---
 			tTotal, tRun, tSleep, tZombie := getServiceProcessStates()
 			const THREAD_ALARM_THRESHOLD = 3000
 
@@ -266,9 +266,7 @@ func (s *MonitorServer) GetSystemStats(
 	}
 }
 
-// --- YARDIMCI FONKSİYONLAR ---
 
-// --- DÜZELTME BURADA: String Karşılaştırması ---
 func getServiceProcessStates() (total, running, sleeping, zombie int32) {
 	procs, err := process.Processes()
 	if err != nil {
@@ -282,7 +280,6 @@ func getServiceProcessStates() (total, running, sleeping, zombie int32) {
 			continue
 		}
 		
-		// Byte çevirimi ([0]) yerine direkt String ("R") kullan
 		switch status[0] {
 		case "R":
 			running++

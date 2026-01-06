@@ -14,9 +14,8 @@ RETURNING *;
 -- name: GetSystemStatHistory :many
 SELECT * FROM system_stats
 ORDER BY created_at DESC
-LIMIT 100; -- Grafik daha geniş görünsün diye 100 yaptık
+LIMIT 100; 
 
 -- name: CleanOldSystemStats :exec
--- Veriyi 6 ay sakla (Best Practice: Uzun dönem analiz için)
 DELETE FROM system_stats
 WHERE created_at < NOW() - INTERVAL '6 months';

@@ -12,13 +12,12 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	// Dev ortamı için CORS izni
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
 }
 
-// Hub: Bağlı olan tüm kullanıcıları ve mesaj trafiğini yönetir
+// Hub
 type Hub struct {
 	clients    map[*websocket.Conn]bool
 	broadcast  chan []byte
@@ -36,7 +35,7 @@ func NewHub() *Hub {
 	}
 }
 
-// Run: Hub'ı çalıştıran ana döngü
+// Run
 func (h *Hub) Run() {
 	for {
 		select {
@@ -44,7 +43,7 @@ func (h *Hub) Run() {
 			h.mutex.Lock()
 			h.clients[conn] = true
 			h.mutex.Unlock()
-			log.Println("🟢 Yeni WebSocket İstemcisi Bağlandı")
+			log.Println("🟢 New WebSocket Client Connected")
 
 		case conn := <-h.unregister:
 			h.mutex.Lock()
@@ -53,15 +52,14 @@ func (h *Hub) Run() {
 				conn.Close()
 			}
 			h.mutex.Unlock()
-			log.Println("🔴 WebSocket İstemcisi Ayrıldı")
+			log.Println("🔴 WebSocket Client Disconnect")
 
 		case message := <-h.broadcast:
-			// Gelen mesajı herkese dağıt
 			h.mutex.Lock()
 			for conn := range h.clients {
 				err := conn.WriteMessage(websocket.TextMessage, message)
 				if err != nil {
-					log.Println("WS Yazma Hatası (Client kopmuş olabilir):", err)
+					log.Println("WS write error:", err)
 					conn.Close()
 					delete(h.clients, conn)
 				}
@@ -71,31 +69,30 @@ func (h *Hub) Run() {
 	}
 }
 
-// Broadcast: Dışarıdan mesaj yollamak için helper
+// Broadcast
 func (h *Hub) Broadcast(data interface{}) {
 	bytes, err := json.Marshal(data)
 	if err != nil {
-		log.Println("JSON Marshal hatası:", err)
+		log.Println("JSON Marshal error:", err)
 		return
 	}
 	h.broadcast <- bytes
 }
 
-// ServeWs: HTTP isteğini WebSocket'e çevirir ve Hub'a kaydeder
+// ServeWs
 func (h *Hub) ServeWs(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("Upgrade hatası:", err)
+		log.Println("Upgrade error:", err)
 		return
 	}
 	h.register <- conn
 
-	// Bağlantı koparsa temizle
+
 	go func() {
 		defer func() {
 			h.unregister <- conn
 		}()
-		// Okuma döngüsü (Client kapattığında hatayı yakalamak için gerekli)
 		for {
 			_, _, err := conn.ReadMessage()
 			if err != nil {

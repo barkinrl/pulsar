@@ -30,7 +30,6 @@ func NewPingProcessor(queries *db.Queries, rdb *redis.Client) *PingProcessor {
 	}
 }
 
-// MonitorTaskPayload tasks.go dosyasında tanımlı.
 
 func (p *PingProcessor) HandlePingTask(ctx context.Context, t *asynq.Task) error {
 	var payload MonitorTaskPayload
@@ -46,7 +45,7 @@ func (p *PingProcessor) HandlePingTask(ctx context.Context, t *asynq.Task) error
 		targetURL = "https://" + targetURL
 	}
 
-	// --- TRACE DEĞİŞKENLERİ ---
+	// --- TRACE VARIABLES ---
 	var (
 		dnsStart, dnsDone   time.Time
 		connStart, connDone time.Time
@@ -54,7 +53,7 @@ func (p *PingProcessor) HandlePingTask(ctx context.Context, t *asynq.Task) error
 		gotFirstByte        time.Time
 	)
 
-	// Trace Hook'ları
+	// Trace Hooks
 	trace := &httptrace.ClientTrace{
 		DNSStart: func(_ httptrace.DNSStartInfo) { dnsStart = time.Now() },
 		DNSDone:  func(_ httptrace.DNSDoneInfo) { dnsDone = time.Now() },
@@ -80,13 +79,13 @@ func (p *PingProcessor) HandlePingTask(ctx context.Context, t *asynq.Task) error
 	}
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
 
-	// User-Agent Ayarları (Özelleştirildi)
+	// User-Agent Settings
 	req.Header.Set("User-Agent", "Pulsar-Monitor/1.0 (Compatible; Go-http-client/1.1; +https://github.com/barkinrl/pulsar)")
 	req.Header.Set("Accept", "*/*")
-	req.Header.Set("Connection", "close") // Bağlantıyı hemen kapat (Cold start ölçümü için)
+	req.Header.Set("Connection", "close") 
 	req.Close = true
 
-	// Transport Ayarları (Keep-Alive Kapat)
+	// Transport Settings 
 	transport := &http.Transport{
 		DisableKeepAlives: true,
 	}
@@ -96,40 +95,34 @@ func (p *PingProcessor) HandlePingTask(ctx context.Context, t *asynq.Task) error
 		Timeout:   10 * time.Second,
 	}
 
-	// --- BAŞLAT ---
+	// --- START ---
 	start := time.Now()
 	resp, err := client.Do(req)
 
-	// HATA DURUMUNDA BİLE SÜREYİ ÖLÇ
-	// (Eğer timeout yersek totalDuration ona göre olsun)
 	var totalDuration time.Duration
 
 	statusCode := 0
 	status := "DOWN"
 
-	// Süre Hesaplamaları
+	// time calculations
 	var dnsDuration, connDuration, tlsDuration, ttfbDuration, downloadDuration float64
 
 	if err == nil {
 		statusCode = resp.StatusCode
 		status = resp.Status
 
-		// --- OPTİMİZASYON BURADA ---
-		// Tüm sayfayı indirmek yerine (io.Copy), sadece ilk 1KB (1024 byte) veriyi oku.
-		// Bu sayede "Download" süresi, 10MB veri indirmekle vakit kaybetmez.
-		// io.CopyN, eğer içerik 1KB'dan kısaysa EOF hatası verir, bu normaldir.
+		// --- OPTIMIZATION ---
 		_, copyErr := io.CopyN(io.Discard, resp.Body, 1024)
 		resp.Body.Close()
 
-		// EOF hatası, veri bitti demektir, hata değildir.
+		// EOF error 
 		if copyErr != nil && copyErr != io.EOF {
-			// Gerçek bir okuma hatası varsa loglayabiliriz ama genelde önemsizdir.
 		}
 
 		endTime := time.Now()
 		totalDuration = time.Since(start)
 
-		// Matematiksel Hesaplamalar
+		// measure durations
 		if !dnsStart.IsZero() && !dnsDone.IsZero() {
 			dnsDuration = float64(dnsDone.Sub(dnsStart).Milliseconds())
 		}
@@ -140,7 +133,7 @@ func (p *PingProcessor) HandlePingTask(ctx context.Context, t *asynq.Task) error
 			tlsDuration = float64(tlsDone.Sub(tlsStart).Milliseconds())
 		}
 
-		// TTFB Hesabı
+		// TTFB Calculation
 		if !gotFirstByte.IsZero() {
 			if !tlsDone.IsZero() {
 				ttfbDuration = float64(gotFirstByte.Sub(tlsDone).Milliseconds())
@@ -151,12 +144,11 @@ func (p *PingProcessor) HandlePingTask(ctx context.Context, t *asynq.Task) error
 			}
 		}
 
-		// Download Hesabı (Artık çok kısa sürecek)
+		// Download Calculation
 		if !gotFirstByte.IsZero() {
 			downloadDuration = float64(endTime.Sub(gotFirstByte).Milliseconds())
 		}
 
-		// Negatif koruması
 		if ttfbDuration < 0 {
 			ttfbDuration = 0
 		}
@@ -165,12 +157,12 @@ func (p *PingProcessor) HandlePingTask(ctx context.Context, t *asynq.Task) error
 		}
 
 	} else {
-		// Hata durumunda da süreyi hesapla (Timeout vs.)
+		// Complete the duration even on error
 		totalDuration = time.Since(start)
 		log.Printf("Ping failed for %s: %v", targetURL, err)
 	}
 
-	// --- 1. VERİTABANINA KAYIT (POSTGRESQL) ---
+	// --- 1. POSTGRESQL ---
 
 	var monID pgtype.UUID
 	monID.Scan(payload.MonitorID)
@@ -195,7 +187,7 @@ func (p *PingProcessor) HandlePingTask(ctx context.Context, t *asynq.Task) error
 		log.Printf("❌ DB Save Error: %v", dbErr)
 	}
 
-	// --- 2. REDIS YAYINLAMA (LIVE DATA) ---
+	// --- 2. LIVE DATA ---
 	updateMsg := map[string]interface{}{
 		"type": "monitor_update",
 		"data": map[string]interface{}{

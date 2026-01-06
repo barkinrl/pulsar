@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// Poller: Veritabanını tarayıp iş çıkaran yapı
+// Poller
 type Poller struct {
 	queries *db.Queries
 	client  *asynq.Client
@@ -25,7 +25,7 @@ func NewPoller(queries *db.Queries, redisOpt asynq.RedisClientOpt) *Poller {
 	}
 }
 
-// Start: Sonsuz döngüyü başlatır
+// Start
 func (p *Poller) Start(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	log.Println("⏱️  Scheduler (Poller) başlatıldı...")
@@ -42,9 +42,6 @@ func (p *Poller) Start(ctx context.Context, interval time.Duration) {
 }
 
 func (p *Poller) enqueueDueMonitors(ctx context.Context) {
-	// 1. Zamanı gelmiş monitörleri bul
-	// Not: sqlc generate ayarlarına göre bu fonksiyonun adı 'ListMonitorsToCheck' de olabilir.
-	// Senin kodunda 'GetMonitorsToPing' olduğu için onu korudum.
 	monitors, err := p.queries.GetMonitorsToPing(ctx)
 	if err != nil {
 		log.Printf("Hata: Monitörler çekilemedi: %v", err)
@@ -52,21 +49,19 @@ func (p *Poller) enqueueDueMonitors(ctx context.Context) {
 	}
 
 	if len(monitors) == 0 {
-		return // Yapılacak iş yok
+		return 
 	}
 
 	log.Printf("🔎 %d adet izlenecek site bulundu, kuyruğa atılıyor...", len(monitors))
 
-	// 2. Her biri için Redis'e görev at
+
 	for _, m := range monitors {
-		// DÜZELTME: Artık URL'i de gönderiyoruz!
 		task, err := NewPingTask(pgUUIDToString(m.ID), m.Url)
 		if err != nil {
 			log.Printf("Task oluşturma hatası: %v", err)
 			continue
 		}
 
-		// Task ID'yi unique yaparak duplicate önleyebiliriz ama şimdilik basit tutalım
 		info, err := p.client.Enqueue(task)
 		if err != nil {
 			log.Printf("Redis kuyruk hatası: %v", err)
@@ -76,7 +71,6 @@ func (p *Poller) enqueueDueMonitors(ctx context.Context) {
 	}
 }
 
-// Yardımcı fonksiyon
 func pgUUIDToString(uuid pgtype.UUID) string {
 	if !uuid.Valid {
 		return ""

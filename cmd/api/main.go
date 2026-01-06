@@ -22,7 +22,7 @@ import (
 )
 
 func main() {
-	// 1. Veritabanı Bağlantısı
+	// 1. DB Conn
 	dbUrl := os.Getenv("DATABASE_URL")
 	if dbUrl == "" {
 		dbUrl = "postgres://pulsar_user:pulsar_password@localhost:5432/pulsar_db?sslmode=disable"
@@ -30,7 +30,7 @@ func main() {
 	pool := connectToDB(dbUrl)
 	defer pool.Close()
 
-	// 2. Redis Bağlantısı
+	// 2. Redis Conn
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
 		redisAddr = "localhost:6379"
@@ -42,12 +42,11 @@ func main() {
 		log.Printf("⚠️ Redis hatası: %v", err)
 	}
 
-	// 3. WebSocket Hub Başlat
+	// 3. WebSocket Hub start
 	hub := api.NewHub()
 	go hub.Run()
 
-	// 4. Redis Listener (KÖPRÜ GÖREVİ)
-	// Worker'dan gelen (Ping veya System Stat) mesajları dinler ve WebSocket'e basar
+	// 4. Redis Listener (bridge to WebSocket)
 	go func() {
 		ctx := context.Background()
 		subscriber := rdb.Subscribe(ctx, "pulsar:updates")
@@ -57,10 +56,10 @@ func main() {
 		}
 	}()
 
-	// 5. DB Queries Oluştur
+	// 5. DB Queries 
 	queries := db.New(pool)
 
-	// 6. Service ve Handler Kurulumu
+	// 6. Service and gRPC Handlers
 	monitorServer := service.NewMonitorServer(queries)
 	path, handler := v1connect.NewMonitorServiceHandler(monitorServer)
 
@@ -68,11 +67,9 @@ func main() {
 	mux.Handle(path, handler)
 	mux.HandleFunc("/ws", hub.ServeWs)
 
-	// 7. CORS Ayarları (GÜNCELLENDİ)
-	// Artık "*" diyerek gelen tüm isteklere izin veriyoruz.
-	// Bu sayede EC2 IP'sinden gelen istekler reddedilmeyecek.
+	// 7. CORS Settings
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"}, // <--- KRİTİK DEĞİŞİKLİK BURADA
+		AllowedOrigins: []string{"*"}, 
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{
 			"Accept",
@@ -85,7 +82,7 @@ func main() {
 		},
 		ExposedHeaders:   []string{"Grpc-Status", "Grpc-Message", "Grpc-Status-Details-Bin"},
 		AllowCredentials: true,
-		Debug:            true, // Hata ayıklamak için logları açtık
+		Debug:            true, 
 	})
 
 	port := "8080"
@@ -112,25 +109,25 @@ func connectToDB(dbUrl string) *pgxpool.Pool {
 	for {
 		config, parseErr := pgxpool.ParseConfig(dbUrl)
 		if parseErr != nil {
-			log.Println("DB Config hatası, bekleniyor...")
+			log.Println("DB Config error, waiting...")
 		} else {
 			pool, err = pgxpool.NewWithConfig(context.Background(), config)
 			if err == nil {
 				err = pool.Ping(context.Background())
 				if err == nil {
-					log.Println("✅ Veritabanına başarıyla bağlanıldı!")
+					log.Println("✅ Successfully connected to DB!")
 					return pool
                 }
             }
         }
 
         if counts > 10 {
-            log.Printf("❌ Veritabanına %d kere denendi ama bağlanılamadı. Kapatılıyor.\n", counts)
+            log.Printf("❌ Trier %d times to connect DB. Shutting down.\n", counts)
             log.Fatal(err)
         }
 
         counts++
-        log.Printf("⏳ Veritabanı bekleniyor... (Deneme %d) Hata: %v\n", counts, err)
+        log.Printf("⏳ waiting DB... (Trying %d) Error: %v\n", counts, err)
         time.Sleep(backOff)
         backOff = backOff + 2*time.Second
     }

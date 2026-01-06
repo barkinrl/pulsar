@@ -8,7 +8,6 @@ SELECT * FROM monitors
 ORDER BY created_at DESC;
 
 -- name: GetMonitorsToPing :many
--- Kontrol zamanı gelmiş (veya hiç kontrol edilmemiş) aktif monitörleri getir
 SELECT * FROM monitors
 WHERE is_active = true 
 AND (last_check IS NULL OR last_check < NOW() - (interval_seconds || ' seconds')::INTERVAL);
@@ -21,7 +20,6 @@ WHERE id = $1;
 -- name: DeleteMonitor :exec
 DELETE FROM monitors WHERE id = $1;
 
--- --- YENİ EKLENENLER (History için) ---
 
 -- name: CreateMonitorResult :one
 INSERT INTO monitor_results (
@@ -41,13 +39,11 @@ INSERT INTO monitor_results (
 ) RETURNING *;
 
 -- name: GetMonitorResults :many
--- Bir monitörün son 50 kaydını getirir (Grafik için)
 SELECT * FROM monitor_results
 WHERE monitor_id = $1
 ORDER BY created_at DESC
 LIMIT 50;
 
 -- name: CleanOldMonitorResults :exec
--- 7 günden eski verileri siler (DB şişmesin diye)
 DELETE FROM monitor_results
 WHERE created_at < NOW() - INTERVAL '7 days';
